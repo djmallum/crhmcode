@@ -417,9 +417,10 @@ void ClassSoilX::run(void) {
         }
 
     nstep = nstep % Global::Freq;
-
+    // Loop over HRUs
     for (hh = 0; chkStruct(); ++hh) {
 
+        // Save important inputs in a buffer. Maybe see why later.
         if (snowinfilDiv == 1) // interval value
             snowinfil_buf[hh] = snowinfil[hh];
 
@@ -432,8 +433,11 @@ void ClassSoilX::run(void) {
         if (evapDiv == 1) // interval value
             hru_evap_buf[hh] = hru_evap[hh];
 
+        // Some kind of initialization step? This is weird b/c the initialization should be in init() 
         if (nstep == 0) {
 
+            // Zd -> freezing/thawing fronts. NLAY determines depth. Don't fully understand this. Would have to read the paper. Mostly 2 layers is the point. Wiki says thaw_layers_lay[0] controls infiltration and recharge layer runoff, thaw_layers_lay[1] works for the lower layer. This is sufficiently general to allow N layers.
+            // My eyes say that the if statement allows infiltration if NO_Freeze is enabled even if there is a freeze front at the surface (Zd_front_array[0][hh] == 0.0)
             for (long ll = 0; ll < depths_size; ++ll) {
                 //bdisher, 2023 - modification to allow infiltration of precipitation when zd_front_array == 0
                 if ( (NO_Freeze[hh] == 0) || (Zd_front_array[0][hh] == 0.0) )
@@ -442,7 +446,7 @@ void ClassSoilX::run(void) {
                     thaw_layers_lay[ll][hh] = 0.0; // all frozen
             }
                 
-
+            // if  any moisture is allowed in the soil AND Freezing is allowed && there is a thaw front (positive values) in the recharge layer.
             if (soil_moist_max[hh] > 0.0 && !NO_Freeze[hh] && Zd_front_array[0][hh] > 0.0) {
 
                 double layer_start = 0.0; // start of current layer
