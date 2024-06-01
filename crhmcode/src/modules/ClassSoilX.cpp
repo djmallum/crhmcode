@@ -501,8 +501,7 @@ void ClassSoilX::run(void) {
         //******Add infiltration to soil and compute excess
 
         if (soil_moist_max[hh] > 0.0) { // skip if the soil cannot hold any moisture in the current HRU
-            soil_lower = soil_moist[hh] - soil_rechr[hh]; // again two-layers, so the lower layer is know since we know  the others.
-                                                          // stopped here May 30, 2024
+            soil_lower = soil_moist[hh] - soil_rechr[hh]; // again two-layers, so the lower layer is know since we know  the others.          
 
             // Storing all the water that could become water in the soil
             double potential = infil[hh] + snowinfil_buf[hh] + condense;
@@ -517,21 +516,24 @@ void ClassSoilX::run(void) {
             // It is possible for some freezing to take place during the previous time step. What happens to the existing moisture if so?
             double possible = thaw_layers_lay[0][hh] * (soil_rechr_max[hh] - soil_rechr[hh]);
 
-            if (possible > potential || NO_Freeze[hh])
-                possible = potential;
+            if (possible > potential || NO_Freeze[hh]) 
+                possible = potential; // if there is room, then the possible and potential must be equal.
             else
-                soil_runoff[hh] = potential - possible;
+                soil_runoff[hh] = potential - possible; // Otherwise there is some runoff
 
             soil_rechr[hh] = soil_rechr[hh] + possible; // infiltrates into entire upper layer
 
+            // If total storage now exceeds max, send it to the lower soil layer.
             if (soil_rechr[hh] > soil_rechr_max[hh]) {
                 excs = soil_rechr[hh] - soil_rechr_max[hh];
                 soil_rechr[hh] = soil_rechr_max[hh];
                 soil_lower = soil_lower + excs;
             }
 
+            // Only store the total in the soil, lower is implied.
             soil_moist[hh] = soil_lower + soil_rechr[hh];
 
+            // if too much in the soil, track excess
             if (soil_moist[hh] > soil_moist_max[hh]) {
                 excs = soil_moist[hh] - soil_moist_max[hh];
                 soil_moist[hh] = soil_moist_max[hh];
@@ -539,6 +541,7 @@ void ClassSoilX::run(void) {
             else
                 excs = 0.0;
 
+            // Actual infiltration
             infil_act[hh] = possible - excs;
             cum_infil_act[hh] += infil_act[hh];
             infil_act_D[hh] += infil_act[hh];
@@ -558,7 +561,7 @@ void ClassSoilX::run(void) {
                 soil_ssr[hh] = rechr_ssr[hh];
                 cum_rechr_ssr[hh] += rechr_ssr[hh];
             }
-
+            // stopped here Sat Jun 1
             double s2gw_k = soil_gw_K[hh] / Global::Freq * thaw_layers_lay[1][hh]; // regulate by amount of unfrozen lower layer
 
       //  Handle excess to gw
