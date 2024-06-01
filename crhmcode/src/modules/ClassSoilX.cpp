@@ -504,8 +504,17 @@ void ClassSoilX::run(void) {
             soil_lower = soil_moist[hh] - soil_rechr[hh]; // again two-layers, so the lower layer is know since we know  the others.
                                                           // stopped here May 30, 2024
 
+            // Storing all the water that could become water in the soil
             double potential = infil[hh] + snowinfil_buf[hh] + condense;
-
+            
+            // Maximum water that can be held. 
+            // First factor is the fraction thawed in the recharge-layer.
+            // Second factor captures the amount of water that could be acted.
+            // Is this correct? 
+            // Should it be:
+            // thaw_layers_lay[0][hh] * soil_rechr_max[hh] - soil_rechr[hh];
+            // soil_rechr is the amount already stored. Shouldn't this already account for fraction thawed from the previous time step?
+            // It is possible for some freezing to take place during the previous time step. What happens to the existing moisture if so?
             double possible = thaw_layers_lay[0][hh] * (soil_rechr_max[hh] - soil_rechr[hh]);
 
             if (possible > potential || NO_Freeze[hh])
