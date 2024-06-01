@@ -433,7 +433,9 @@ void ClassSoilX::run(void) {
         if (evapDiv == 1) // interval value
             hru_evap_buf[hh] = hru_evap[hh];
 
-        // Some kind of initialization step? This is weird b/c the initialization should be in init() 
+        // Some kind of initialization step? This is weird b/c the initialization should be in init()
+        // Comment at the end says 'finished  daily upgrade', suggesting these run routines are run once a 'day'.
+        // also see next if after this one, nstep == 1, 'beginning of every day', which might mean that nstep is looped over to get through a day
         if (nstep == 0) {
 
             // Zd -> freezing/thawing fronts. NLAY determines depth. Don't fully understand this. Would have to read the paper. Mostly 2 layers is the point. Wiki says thaw_layers_lay[0] controls infiltration and recharge layer runoff, thaw_layers_lay[1] works for the lower layer. This is sufficiently general to allow N layers.
@@ -470,7 +472,8 @@ void ClassSoilX::run(void) {
                 } // while ll
             }
         } // finished daily upgrade
-
+        
+        // _D are daily quantities, so they are reset everyday. nstep must be restarted all the time.
         if (nstep == 1) { // beginning of every day
             soil_runoff_D[hh] = 0.0;
             soil_ssr_D[hh] = 0.0;
@@ -478,7 +481,7 @@ void ClassSoilX::run(void) {
             gw_flow_D[hh] = 0.0;
             infil_act_D[hh] = 0.0;
         }
-
+        // reset at every time step, will be changed later.
         hru_actet[hh] = 0.0;
         infil_act[hh] = 0.0;
         soil_gw[hh] = 0.0;
@@ -486,6 +489,7 @@ void ClassSoilX::run(void) {
         rechr_ssr[hh] = 0.0;
         soil_runoff[hh] = 0.0;
 
+        // I think this essentially adds rainfall if the incoming evap is negative
         if (hru_evap_buf[hh] < 0.0) {
             condense = -hru_evap_buf[hh];
             cum_hru_condense[hh] += condense;
@@ -496,8 +500,9 @@ void ClassSoilX::run(void) {
 
         //******Add infiltration to soil and compute excess
 
-        if (soil_moist_max[hh] > 0.0) {
-            soil_lower = soil_moist[hh] - soil_rechr[hh];
+        if (soil_moist_max[hh] > 0.0) { // skip if the soil cannot hold any moisture in the current HRU
+            soil_lower = soil_moist[hh] - soil_rechr[hh]; // again two-layers, so the lower layer is know since we know  the others.
+                                                          // stopped here May 30, 2024
 
             double potential = infil[hh] + snowinfil_buf[hh] + condense;
 
