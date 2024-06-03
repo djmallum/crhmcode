@@ -565,8 +565,9 @@ void ClassSoilX::run(void) {
                 // Remove runoff from total..
                 soil_rechr[hh] -= rechr_ssr[hh];
 
-                // This seems problematic. Aren't we adding water if we don't also change rechr_ssr?
-                // Should also include a line rechr_ssr[hh] = soil_rechr[hh]; before settting soil_rechr to zero.
+                // I was initally concerned with this line but I'm not now. The reason is that if 
+                // soil_rechr < 0, the excess amount is kept track of and removed from the lower soil
+                // layer implicitly in the line below which  -= the rechr_ssr from the total soil moisture 
                 if (soil_rechr[hh] < 0.0)
                     soil_rechr[hh] = 0.0;
 
