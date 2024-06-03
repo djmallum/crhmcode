@@ -514,6 +514,9 @@ void ClassSoilX::run(void) {
             // thaw_layers_lay[0][hh] * soil_rechr_max[hh] - soil_rechr[hh];
             // soil_rechr is the amount already stored. Shouldn't this already account for fraction thawed from the previous time step?
             // It is possible for some freezing to take place during the previous time step. What happens to the existing moisture if so?
+            // I think this is OK, this line says that liquid is uniformly distributed throught soil, and I think water sticks around, and is 
+            // melted later and contributes due to other modules.
+            // Remaining Q: Shouldn't this thaw_layers_lay contribute or factor into ssr calculations? i think it does.
             double possible = thaw_layers_lay[0][hh] * (soil_rechr_max[hh] - soil_rechr[hh]);
 
             if (possible > potential || NO_Freeze[hh]) 
@@ -548,8 +551,11 @@ void ClassSoilX::run(void) {
 
             //  Handle subsurface runoff
 
-            if (!inhibit_evap[hh]) { // only when no snowcover
+            if (!inhibit_evap[hh]) { // only when no snowcover, so evap from the soil is possible.
+                // Calculate ssr from the recharge layer. Amount is a set rate scaled by a fraction of max and a fraction thawed. 
                 rechr_ssr[hh] = soil_rechr[hh] / soil_rechr_max[hh] * rechr_ssr_K[hh] / Global::Freq * thaw_layers_lay[0][hh]; // regulate by amount unfrozen
+
+                // if the result exceeds the amount available
                 if (rechr_ssr[hh] > soil_rechr[hh] * thaw_layers_lay[0][hh])
                     rechr_ssr[hh] = soil_rechr[hh] * thaw_layers_lay[0][hh];
 
