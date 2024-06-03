@@ -551,27 +551,41 @@ void ClassSoilX::run(void) {
 
             //  Handle subsurface runoff
 
+            // Why does this process care about evap?
             if (!inhibit_evap[hh]) { // only when no snowcover, so evap from the soil is possible.
                 // Calculate ssr from the recharge layer. Amount is a set rate scaled by a fraction of max and a fraction thawed. 
                 rechr_ssr[hh] = soil_rechr[hh] / soil_rechr_max[hh] * rechr_ssr_K[hh] / Global::Freq * thaw_layers_lay[0][hh]; // regulate by amount unfrozen
 
-                // if the result exceeds the amount available
+                // if the result exceeds the amount available. If rechr_ssr_K were constant, then
+                // the below statement would always be true or false. But its value is estimated in
+                // ClassK_Estimate.cpp, and depends on soil_rechr and other changing quantities.
                 if (rechr_ssr[hh] > soil_rechr[hh] * thaw_layers_lay[0][hh])
                     rechr_ssr[hh] = soil_rechr[hh] * thaw_layers_lay[0][hh];
 
+                // Remove runoff from total..
                 soil_rechr[hh] -= rechr_ssr[hh];
+
+                // This seems problematic. Aren't we adding water if we don't also change rechr_ssr?
+                // Should also include a line rechr_ssr[hh] = soil_rechr[hh]; before settting soil_rechr to zero.
                 if (soil_rechr[hh] < 0.0)
                     soil_rechr[hh] = 0.0;
 
-                soil_moist[hh] -= rechr_ssr[hh];
-                soil_ssr[hh] = rechr_ssr[hh];
-                cum_rechr_ssr[hh] += rechr_ssr[hh];
+                soil_moist[hh] -= rechr_ssr[hh]; //Remove ssr from total
+                soil_ssr[hh] = rechr_ssr[hh]; // All ssr so far is from the rechr
+                cum_rechr_ssr[hh] += rechr_ssr[hh]; 
             }
-            // stopped here Sat Jun 1
+            // runoff from groundwater. Currently amount of gw is not stored, 
+            // but we do store amount from soil that goes to gw in soil_gw (see below)
+            // This is why this does not depend on how much is in the gw, like with the rechr layer version above.
+            // this is soil to gw, not gw to rivers/lakes/etc.
             double s2gw_k = soil_gw_K[hh] / Global::Freq * thaw_layers_lay[1][hh]; // regulate by amount of unfrozen lower layer
 
       //  Handle excess to gw
+      //  Excess requires that some excess exists and s2gw_k>0
             if (excs > 0.0 && s2gw_k > 0.0) {
+                // If there is more excess than there is s2gw then
+                // all of s2gw goes to gw, excess shrinks but is not depleted
+                // otherwise, all of excess goes to gw
                 if (excs >= s2gw_k) { // to gw 03/04/10 changed from >
                     soil_gw[hh] = s2gw_k;
                     excs -= s2gw_k;
@@ -583,7 +597,12 @@ void ClassSoilX::run(void) {
             }
 
             //  Handle excess to interflow or runoff
-
+            // if there is remaining excess, and this HRU has interflow, so ssr can return to the surface or stay around
+            // not 100% on this definition but it is consistent with wiki.
+            // the amount added to soil_ssr is based on a % of thawed.
+            // this is an odd line because excess original calculation doesn't consider freezing. However,
+            // There is only excess in liquid form because only liquid can infiltrate, so it is ok in that sense. 
+            // But if so why is fraction thawed in the lower layer mattering here if excess is already definitionally unfrozen.
             if (!soil_ssr_runoff[hh] && excs > 0.0) { // to interflow regulated by amount of unfrozen upper layer
                 soil_ssr[hh] += excs * thaw_layers_lay[1][hh];
                 excs = excs * (1.0 - thaw_layers_lay[1][hh]);
@@ -593,23 +612,27 @@ void ClassSoilX::run(void) {
             excs = infil[hh] + snowinfil_buf[hh] + condense;
         }
 
-        double runoff_to_Sd = 0.0;
+        double runoff_to_Sd = 0.0; // runoff to depressional storage
 
+        // surface runoff from excess soil water. Meltrunoff + otherrunoff + excesss + residual in routing after putting some in
+        // depressional storage and into the recharge layer.
         soil_runoff[hh] += (meltrunoff_buf[hh] + runoff_buf[hh] + excs + redirected_residual[hh] / hru_area[hh]); // last term (mm*km^2/int)
 
         cum_redirected_residual[hh] += redirected_residual[hh];
 
-        redirected_residual[hh] = 0;
+        redirected_residual[hh] = 0; // set to zero because now its used.
 
+        // if there is some soil runoff and some detention storage is allowed
+        // detention storage
         if (soil_runoff[hh] > 0.0 && Dts_max[hh] > 0.0) {
 
-            if (inhibit_evap[hh] == 1) // when snowcover
-                Dts_max[hh] = Dts_snow_max[hh];
-
+            if (inhibit_evap[hh] == 1) // when snowcover 
+                Dts_max[hh] = Dts_snow_max[hh]; // Dts_snow_max: max with snowcover
+            // stopped here June 3 2024
             else if (inhibit_evap[hh] == 0) // when no snowcover
                 Dts_max[hh] = Dts_organic_max[hh];
 
-            Dss = Dts_max[hh] - Dts[hh];
+            Dss = Dts_max[hh] - Dts[hh]; // Space for detention storage
 
             if (Dss > 0.0) {
                 if (soil_runoff[hh] > Dss) {
