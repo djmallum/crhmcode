@@ -75,6 +75,8 @@ void Classnetall::init(void) {
 
   nhru = getdim(TDim::NHRU);
 
+  // Really simple initialization
+  // simply zeros the cumulative radiation
   for (hh = 0; hh < nhru; ++hh)
     cum_net[hh] = 0.0;
 }
@@ -87,12 +89,13 @@ void Classnetall::run(void) {
 
   if(nstep == 1 || Global::Freq == 1){ // beginning of every day
 
-    for (hh = 0; chkStruct(); ++hh) {
-      netD[hh] = 0.0;
-      RnD[hh] = 0.0;
-      RnD_POS[hh] = 0.0;
 
-      for (int ff = 0; ff < Global::Freq; ++ff) {
+    for (hh = 0; chkStruct(); ++hh) { // lloop over HRUs
+      netD[hh] = 0.0; // net radiation per day
+      RnD[hh] = 0.0; // Same as above but in units of mm/m^2/d
+      RnD_POS[hh] = 0.0; // Sum of all positive (outgoing? incoming?)
+
+      for (int ff = 0; ff < Global::Freq; ++ff) { 
         if(SunMax[hh] > 0.0)
           netlong = -0.85 + 0.97*CRHM_constants::SB*pow(tday_intvls[ff][hh]+273.0f, 4)*(-0.39f+0.093f*sqrt(eaday_intvls[ff][hh]))*
                                     (0.26f+0.81f*(hru_SunAct[hh]/SunMax[hh]));
